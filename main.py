@@ -1,10 +1,12 @@
 import sys
+import os
+import json
 import ctypes
 from ctypes import wintypes
 from threading import Thread
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QPoint
+from PyQt5.QtGui import QFont, QMouseEvent
 from pynput import keyboard
 
 
@@ -13,13 +15,14 @@ class KeyboardSignal(QObject):
 
 
 class LanguageIndicator(QMainWindow):
+    CONFIG_FILE = "kb-layout-config.json"
+    
     def __init__(self):
         super().__init__()
         self.setWindowFlags(
             Qt.WindowStaysOnTopHint |
             Qt.FramelessWindowHint |
-            Qt.Tool |
-            Qt.WindowTransparentForInput
+            Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setStyleSheet("background-color: transparent;")
@@ -28,10 +31,24 @@ class LanguageIndicator(QMainWindow):
         screen = QApplication.primaryScreen().geometry()
         window_width = 60
         window_height = 60
-        x = screen.width() - window_width - 20
-        y = 20
         
-        self.setGeometry(x, y, window_width, window_height)
+        # Загружаем сохраненную позицию или используем значение по умолчанию
+        saved_position = self.load_position()
+        if saved_position:
+            x, y = saved_position
+            # Проверяем, что позиция в пределах экрана
+            if 0 <= x <= screen.width() - window_width and 0 <= y <= screen.height() - window_height:
+                self.setGeometry(x, y, window_width, window_height)
+            else:
+                # Если позиция вне экрана, используем значение по умолчанию
+                x = screen.width() - window_width - 20
+                y = 20
+                self.setGeometry(x, y, window_width, window_height)
+        else:
+            # Значение по умолчанию - верхний правый угол
+            x = screen.width() - window_width - 20
+            y = 20
+            self.setGeometry(x, y, window_width, window_height)
         
         # Создаем метку для отображения языка
         self.label = QLabel("", self)
@@ -49,6 +66,10 @@ class LanguageIndicator(QMainWindow):
         # Сигнал для обработки нажатий клавиш из другого потока
         self.keyboard_signal = KeyboardSignal()
         self.keyboard_signal.key_pressed.connect(self.update_language)
+        
+        # Переменные для перетаскивания
+        self.dragging = False
+        self.drag_position = QPoint()
         
         # Запускаем хук клавиатуры в отдельном потоке
         self.start_keyboard_listener()
@@ -161,6 +182,59 @@ class LanguageIndicator(QMainWindow):
         
         thread = Thread(target=listener_thread, daemon=True)
         thread.start()
+    
+    def mousePressEvent(self, event: QMouseEvent):
+        """Обработчик нажатия кнопки мыши для перетаскивания"""
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event: QMouseEvent):
+        """Обработчик перемещения мыши для перетаскивания"""
+        if self.dragging and event.buttons() == Qt.LeftButton:
+            # Останавливаем таймер скрытия при перетаскивании
+            self.hide_timer.stop()
+            # Перемещаем окно
+            self.move(event.globalPos() - self.drag_position)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        """Обработчик отпускания кнопки мыши"""
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            # Сохраняем новую позицию
+            self.save_position()
+            event.accept()
+    
+    def load_position(self):
+        """Загружает сохраненную позицию окна из файла"""
+        try:
+            if os.path.exists(self.CONFIG_FILE):
+                with open(self.CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    return config.get('x'), config.get('y')
+        except Exception as e:
+            print(f"Ошибка загрузки позиции: {e}")
+        return None
+    
+    def save_position(self):
+        """Сохраняет текущую позицию окна в файл"""
+        try:
+            pos = self.pos()
+            config = {
+                'x': pos.x(),
+                'y': pos.y()
+            }
+            with open(self.CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2)
+        except Exception as e:
+            print(f"Ошибка сохранения позиции: {e}")
+    
+    def closeEvent(self, event):
+        """Обработчик закрытия окна - сохраняем позицию"""
+        self.save_position()
+        event.accept()
 
 
 def main():
