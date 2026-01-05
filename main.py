@@ -32,12 +32,13 @@ class LanguageIndicator(QMainWindow):
         window_width = 60
         window_height = 60
         
-        # Загружаем сохраненную позицию или используем значение по умолчанию
+        # Загружаем сохраненную позицию
         saved_position = self.load_position()
         if saved_position:
             x, y = saved_position
             # Проверяем, что позиция в пределах экрана
             if 0 <= x <= screen.width() - window_width and 0 <= y <= screen.height() - window_height:
+                # Используем сохраненную позицию
                 self.setGeometry(x, y, window_width, window_height)
             else:
                 # Если позиция вне экрана, используем значение по умолчанию
@@ -45,7 +46,7 @@ class LanguageIndicator(QMainWindow):
                 y = 20
                 self.setGeometry(x, y, window_width, window_height)
         else:
-            # Значение по умолчанию - верхний правый угол
+            # Только если сохраненной позиции нет - используем значение по умолчанию
             x = screen.width() - window_width - 20
             y = 20
             self.setGeometry(x, y, window_width, window_height)
@@ -213,7 +214,11 @@ class LanguageIndicator(QMainWindow):
             if os.path.exists(self.CONFIG_FILE):
                 with open(self.CONFIG_FILE, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    return config.get('x'), config.get('y')
+                    x = config.get('x')
+                    y = config.get('y')
+                    # Возвращаем позицию только если оба значения присутствуют
+                    if x is not None and y is not None:
+                        return x, y
         except Exception as e:
             print(f"Ошибка загрузки позиции: {e}")
         return None
