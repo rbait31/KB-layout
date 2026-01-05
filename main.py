@@ -22,12 +22,12 @@ class LanguageIndicator(QMainWindow):
             Qt.WindowTransparentForInput
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setStyleSheet("background-color: rgba(0, 0, 0, 180); border-radius: 5px;")
+        self.setStyleSheet("background-color: transparent;")
         
         # Получаем размер экрана
         screen = QApplication.primaryScreen().geometry()
-        window_width = 80
-        window_height = 50
+        window_width = 60
+        window_height = 60
         x = screen.width() - window_width - 20
         y = 20
         
@@ -36,7 +36,7 @@ class LanguageIndicator(QMainWindow):
         # Создаем метку для отображения языка
         self.label = QLabel("", self)
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet("color: white; background-color: transparent;")
+        self.label.setStyleSheet("color: white; background-color: rgba(100, 100, 100, 200); border-radius: 5px;")
         font = QFont("Arial", 24, QFont.Bold)
         self.label.setFont(font)
         self.label.setGeometry(0, 0, window_width, window_height)
@@ -110,6 +110,18 @@ class LanguageIndicator(QMainWindow):
         """Обновляет отображаемый язык клавиатуры"""
         lang = self.get_keyboard_language()
         self.label.setText(lang)
+        
+        # Устанавливаем цветной квадратик в зависимости от языка
+        if lang == "RU":
+            # Зеленый для русского
+            self.label.setStyleSheet("color: white; background-color: rgba(76, 175, 80, 230); border-radius: 5px;")
+        elif lang == "EN":
+            # Синий для английского
+            self.label.setStyleSheet("color: white; background-color: rgba(33, 150, 243, 230); border-radius: 5px;")
+        else:
+            # Серый для других языков
+            self.label.setStyleSheet("color: white; background-color: rgba(100, 100, 100, 200); border-radius: 5px;")
+        
         self.show()
         self.raise_()
         self.activateWindow()
